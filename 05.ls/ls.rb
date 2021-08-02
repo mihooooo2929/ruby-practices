@@ -46,9 +46,9 @@ end
 
 def find_file_type(f_type)
   file_tyme_letters = {
-    directory: 'd',
-    file: 'f',
-    link: 'l'
+    'directory' => 'd',
+    'file' => '-',
+    'link' => 'l'
   }
   file_tyme_letters[f_type]
 end
@@ -90,14 +90,6 @@ def f_group(file_stat)
   Etc.getgrgid(group_uid).name
 end
 
-def mtime(file_time_mtime)
-  mtime_m_string = file_time_mtime.month.to_s.rjust(2, ' ')
-  mtime_d_string = file_time_mtime.day
-  mtime_h_string = file_time_mtime.hour.to_s.rjust(2, '0')
-  mtime_min_string = file_time_mtime.min.to_s.rjust(2, '0')
-  "#{mtime_m_string} #{mtime_d_string} #{mtime_h_string}:#{mtime_min_string}"
-end
-
 def calculate_reminder(items, number_of_columns, options_l)
   remainder_n = items.length % number_of_columns
   while remainder_n != 0 && options_l != true
@@ -131,7 +123,7 @@ def print_items_for_l(items, items_length)
   file_type = find_file_type(file_stat.ftype)
   file_size = file_stat.size
   file_time_mtime = file_stat.mtime
-  mtime(file_time_mtime)
+  file_time_mtime = format_mtime(file_time_mtime)
   file_link = file_stat.nlink
   permission_number_ary = ((file_stat.mode.to_s(2).to_i / 1) % 1_000_000_000).to_s.split('')
   permission(permission_number_ary)
@@ -142,6 +134,14 @@ def print_items_for_l(items, items_length)
   size_st = file_size.to_s.rjust(8, ' ')
   print "#{file_type}#{permission} #{link_st} #{owner} #{group} #{size_st} #{file_time_mtime} #{item}"
   print "\n"
+end
+
+def format_mtime(file_time_mtime)
+  mtime_m_string = file_time_mtime.month.to_s.rjust(2, ' ')
+  mtime_d_string = file_time_mtime.day
+  mtime_h_string = file_time_mtime.hour.to_s.rjust(2, '0')
+  mtime_min_string = file_time_mtime.min.to_s.rjust(2, '0')
+  "#{mtime_m_string} #{mtime_d_string} #{mtime_h_string}:#{mtime_min_string}"
 end
 
 def function_for_general(items, number_of_columns, max_item_string_length)
