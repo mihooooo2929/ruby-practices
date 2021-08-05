@@ -125,7 +125,7 @@ def print_items_for_l(items, items_length)
   file_time_mtime = file_stat.mtime
   file_time_mtime = format_mtime(file_time_mtime)
   file_link = file_stat.nlink
-  permission_number_ary = ((file_stat.mode.to_s(2).to_i / 1) % 1_000_000_000).to_s.split('')
+  permission_number_ary = ((file_stat.mode.to_s(2).to_i) % 1_000_000_000).to_s.split('')
   permission(permission_number_ary)
   permission = permission_number_ary.join('')
   owner = f_owner(file_stat)
