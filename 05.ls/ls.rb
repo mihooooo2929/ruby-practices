@@ -19,10 +19,10 @@ def main
   end
   number_of_columns = window_length / (max_item_string_length + 1)
   number_of_columns = MAX_COLUMN if number_of_columns > MAX_COLUMN
-  calculate_reminder(items, number_of_columns, options_l)
-  items_length, total_f_bloks = calc_item_length(items)
+  calculate_remainder(items, number_of_columns, options_l)
+  items_length, total_f_blocks = calc_item_length(items)
   if options_l
-    function_for_l(items, items_length, total_f_bloks)
+    function_for_l(items, items_length, total_f_blocks)
   else
     function_for_general(items, number_of_columns, max_item_string_length)
   end
@@ -90,7 +90,7 @@ def f_group(file_stat)
   Etc.getgrgid(group_uid).name
 end
 
-def calculate_reminder(items, number_of_columns, options_l)
+def calculate_remainder(items, number_of_columns, options_l)
   remainder_n = items.length % number_of_columns
   while remainder_n != 0 && options_l != true
     items.push('')
@@ -108,9 +108,9 @@ def print_transported_items(transposed_items, this_item_x, this_item_y, max_item
   print transposed_items[this_item_x][this_item_y].ljust(max_item_string_length.to_i + 1, ' ')
 end
 
-def function_for_l(items, items_length, total_f_bloks)
+def function_for_l(items, items_length, total_f_blocks)
   items_length = 0
-  puts "total #{total_f_bloks}"
+  puts "total #{total_f_blocks}"
   while items_length < items.length
     print_items_for_l(items, items_length)
     items_length += 1
@@ -163,14 +163,15 @@ def function_for_general(items, number_of_columns, max_item_string_length)
 end
 
 def calc_item_length(items)
-  total_f_bloks = 0
+  total_f_blocks = 0
   items_length = 0
   while items_length < items.length
     item = items[items_length]
     file_stat = File.stat(File.absolute_path(item.to_s))
-    total_f_bloks += file_stat.blocks
+    total_f_blocks += file_stat.blocks
     items_length += 1
   end
-  [items_length, total_f_bloks]
+  [items_length, total_f_blocks]
 end
+
 main
