@@ -12,19 +12,19 @@ def main
   options_r = options['r']
   items = items(options_a)
   items = sort_items(options_r, items)
-  window_length = `tput cols`.to_i
-  max_item_string_length = 0
-  items.each do |item|
-    max_item_string_length = item.to_s.length if max_item_string_length <= item.to_s.length
-  end
-  number_of_columns = window_length / (max_item_string_length + 1)
-  number_of_columns = MAX_COLUMN if number_of_columns > MAX_COLUMN
-  calculate_remainder(items, number_of_columns, options_l)
-  items_length, total_f_blocks = calc_item_length(items)
   if options_l
-    function_for_l(items, items_length, total_f_blocks)
+    total_f_blocks = calc_item_length(items)
+    display_for_l(items, total_f_blocks)
   else
-    function_for_general(items, number_of_columns, max_item_string_length)
+    max_item_string_length = 0
+    items.each do |item|
+      max_item_string_length = item.to_s.length if max_item_string_length <= item.to_s.length
+    end
+    window_length = `tput cols`.to_i
+    number_of_columns = window_length / (max_item_string_length + 1)
+    number_of_columns = MAX_COLUMN if number_of_columns > MAX_COLUMN
+    push_empty_elements(items, number_of_columns)
+    display_for_general(items, number_of_columns, max_item_string_length)
   end
 end
 
@@ -45,38 +45,33 @@ def sort_items(options_r, items)
 end
 
 def find_file_type(f_type)
-  file_tyme_letters = {
+  file_type_letters = {
     'directory' => 'd',
     'file' => '-',
     'link' => 'l'
   }
-  file_tyme_letters[f_type]
+  file_type_letters[f_type]
 end
 
-def permission(permission_number_ary)
-  permission_number_ary.each_with_index do |n, i|
-    n = if n == '1' && i.zero?
-          'r'
-        elsif n == '1' && i == 3
-          'r'
-        elsif n == '1' && i == 6
-          'r'
-        elsif n == '1' && i == 1
-          'w'
-        elsif n == '1' && i == 4
-          'w'
-        elsif n == '1' && i == 7
-          'w'
-        elsif n == '1' && i == 2
-          'x'
-        elsif n == '1' && i == 5
-          'x'
-        elsif n == '1' && i == 8
-          'x'
-        else
-          '-'
-        end
-    permission_number_ary[i] = n
+def build_permission(permission_number_ary)
+  permission_chars = []
+  permission_number_ary.each_slice(3) do |permission_group|
+    permission_group.each_with_index do |bit_str, index|
+      permission_chars << to_permission_char(bit_str, index)
+    end
+  end
+  permission_chars.join
+end
+
+def to_permission_char(bit_str, index)
+  if bit_str == '1' && index.zero?
+    'r'
+  elsif bit_str == '1' && index == 1
+    'w'
+  elsif bit_str == '1' && index == 2
+    'x'
+  else
+    '-'
   end
 end
 
@@ -90,9 +85,9 @@ def f_group(file_stat)
   Etc.getgrgid(group_uid).name
 end
 
-def calculate_remainder(items, number_of_columns, options_l)
+def push_empty_elements(items, number_of_columns)
   remainder_n = items.length % number_of_columns
-  while remainder_n != 0 && options_l != true
+  while remainder_n != 0
     items.push('')
     remainder_n = items.length % number_of_columns
   end
@@ -108,26 +103,22 @@ def print_transported_items(transposed_items, this_item_x, this_item_y, max_item
   print transposed_items[this_item_x][this_item_y].ljust(max_item_string_length.to_i + 1, ' ')
 end
 
-def function_for_l(items, items_length, total_f_blocks)
-  items_length = 0
+def display_for_l(items, total_f_blocks)
   puts "total #{total_f_blocks}"
-  while items_length < items.length
-    print_items_for_l(items, items_length)
-    items_length += 1
+  items.each do |item|
+    print_items_for_l(item)
   end
 end
 
-def print_items_for_l(items, items_length)
-  item = items[items_length]
+def print_items_for_l(item)
   file_stat = File.stat(File.absolute_path(item.to_s))
   file_type = find_file_type(file_stat.ftype)
   file_size = file_stat.size
   file_time_mtime = file_stat.mtime
   file_time_mtime = format_mtime(file_time_mtime)
   file_link = file_stat.nlink
-  permission_number_ary = ((file_stat.mode.to_s(2).to_i) % 1_000_000_000).to_s.split('')
-  permission(permission_number_ary)
-  permission = permission_number_ary.join('')
+  permission_number_ary = (file_stat.mode.to_s(2).to_i % 1_000_000_000).to_s.split('')
+  permission = build_permission(permission_number_ary)
   owner = f_owner(file_stat)
   group = f_group(file_stat)
   link_st = file_link.to_s.rjust(2, ' ')
@@ -137,14 +128,10 @@ def print_items_for_l(items, items_length)
 end
 
 def format_mtime(file_time_mtime)
-  mtime_m_string = file_time_mtime.month.to_s.rjust(2, ' ')
-  mtime_d_string = file_time_mtime.day
-  mtime_h_string = file_time_mtime.hour.to_s.rjust(2, '0')
-  mtime_min_string = file_time_mtime.min.to_s.rjust(2, '0')
-  "#{mtime_m_string} #{mtime_d_string} #{mtime_h_string}:#{mtime_min_string}"
+  file_time_mtime.strftime('%-m  %-d %H:%M')
 end
 
-def function_for_general(items, number_of_columns, max_item_string_length)
+def display_for_general(items, number_of_columns, max_item_string_length)
   number_of_rows = (items.length / number_of_columns.to_i).to_i
   transposed_items = items.each_slice(number_of_rows).to_a.transpose
   this_item_x = 0
@@ -165,11 +152,9 @@ end
 def calc_item_length(items)
   total_f_blocks = 0
   items_length = 0
-  while items_length < items.length
-    item = items[items_length]
+  items.each do |item|
     file_stat = File.stat(File.absolute_path(item.to_s))
     total_f_blocks += file_stat.blocks
-    items_length += 1
   end
   [items_length, total_f_blocks]
 end
