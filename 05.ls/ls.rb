@@ -10,11 +10,11 @@ def main
   options_a = options['a']
   options_l = options['l']
   options_r = options['r']
-  items = items(options_a)
+  items = find_items(options_a)
   items = sort_items(options_r, items)
   if options_l
-    total_f_blocks = calc_item_length(items)
-    display_for_l(items, total_f_blocks)
+    total_blocks = calc_total_blocks(items)
+    print_for_l(items, total_blocks)
   else
     max_item_string_length = 0
     items.each do |item|
@@ -24,11 +24,11 @@ def main
     number_of_columns = window_length / (max_item_string_length + 1)
     number_of_columns = MAX_COLUMN if number_of_columns > MAX_COLUMN
     push_empty_elements(items, number_of_columns)
-    display_for_general(items, number_of_columns, max_item_string_length)
+    print_for_general(items, number_of_columns, max_item_string_length)
   end
 end
 
-def items(options_a)
+def find_items(options_a)
   if options_a
     Dir.glob('*', File::FNM_DOTMATCH)
   else
@@ -44,16 +44,17 @@ def sort_items(options_r, items)
   end
 end
 
-def find_file_type(f_type)
+def find_file_type(file_type)
   file_type_letters = {
     'directory' => 'd',
     'file' => '-',
     'link' => 'l'
   }
-  file_type_letters[f_type]
+  file_type_letters[file_type]
 end
 
-def build_permission(permission_number_ary)
+def build_permission(file_stat)
+  permission_number_ary = (file_stat.mode.to_s(2).to_i % 1_000_000_000).to_s.chars
   permission_chars = []
   permission_number_ary.each_slice(3) do |permission_group|
     permission_group.each_with_index do |bit_str, index|
@@ -64,23 +65,23 @@ def build_permission(permission_number_ary)
 end
 
 def to_permission_char(bit_str, index)
-  if bit_str == '1' && index.zero?
-    'r'
-  elsif bit_str == '1' && index == 1
-    'w'
-  elsif bit_str == '1' && index == 2
-    'x'
+  if bit_str == '1'
+    case index
+    when 0 then 'r'
+    when 1 then 'w'
+    when 2 then 'x'
+    end
   else
     '-'
   end
 end
 
-def f_owner(file_stat)
+def find_owner(file_stat)
   owner_uid = file_stat.uid
   Etc.getpwuid(owner_uid).name
 end
 
-def f_group(file_stat)
+def find_group(file_stat)
   group_uid = file_stat.gid
   Etc.getgrgid(group_uid).name
 end
@@ -103,8 +104,8 @@ def print_transported_items(transposed_items, this_item_x, this_item_y, max_item
   print transposed_items[this_item_x][this_item_y].ljust(max_item_string_length.to_i + 1, ' ')
 end
 
-def display_for_l(items, total_f_blocks)
-  puts "total #{total_f_blocks}"
+def print_for_l(items, total_blocks)
+  puts "total #{total_blocks}"
   items.each do |item|
     print_items_for_l(item)
   end
@@ -113,25 +114,22 @@ end
 def print_items_for_l(item)
   file_stat = File.stat(File.absolute_path(item.to_s))
   file_type = find_file_type(file_stat.ftype)
-  file_size = file_stat.size
-  file_time_mtime = file_stat.mtime
-  file_time_mtime = format_mtime(file_time_mtime)
+  permission = build_permission(file_stat)
   file_link = file_stat.nlink
-  permission_number_ary = (file_stat.mode.to_s(2).to_i % 1_000_000_000).to_s.split('')
-  permission = build_permission(permission_number_ary)
-  owner = f_owner(file_stat)
-  group = f_group(file_stat)
-  link_st = file_link.to_s.rjust(2, ' ')
-  size_st = file_size.to_s.rjust(8, ' ')
-  print "#{file_type}#{permission} #{link_st} #{owner} #{group} #{size_st} #{file_time_mtime} #{item}"
+  link_str = file_link.to_s.rjust(2, ' ')
+  owner = find_owner(file_stat)
+  group = find_group(file_stat)
+  file_size = file_stat.size
+  size_str = file_size.to_s.rjust(8, ' ')
+  file_time_mtime = file_stat.mtime
+  file_time_mtime = file_time_mtime.strftime('%-m  %-d %H:%M')
+  print "#{file_type}#{permission} #{link_str} #{owner} #{group} #{size_str} #{file_time_mtime} #{item}"
   print "\n"
 end
 
-def format_mtime(file_time_mtime)
-  file_time_mtime.strftime('%-m  %-d %H:%M')
-end
 
-def display_for_general(items, number_of_columns, max_item_string_length)
+
+def print_for_general(items, number_of_columns, max_item_string_length)
   number_of_rows = (items.length / number_of_columns.to_i).to_i
   transposed_items = items.each_slice(number_of_rows).to_a.transpose
   this_item_x = 0
@@ -149,14 +147,11 @@ def display_for_general(items, number_of_columns, max_item_string_length)
   end
 end
 
-def calc_item_length(items)
-  total_f_blocks = 0
-  items_length = 0
-  items.each do |item|
+def calc_total_blocks(items)
+  items.sum do |item|
     file_stat = File.stat(File.absolute_path(item.to_s))
-    total_f_blocks += file_stat.blocks
+    file_stat.blocks
   end
-  [items_length, total_f_blocks]
 end
 
 main
